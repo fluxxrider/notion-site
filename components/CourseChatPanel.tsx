@@ -1,6 +1,8 @@
 import React from 'react'
 import cs from 'classnames'
 
+import { getSupabaseClient } from '@/lib/supabase'
+
 import styles from './CourseChatPanel.module.css'
 
 interface ChatMessage {
@@ -52,10 +54,21 @@ export const CourseChatPanel: React.FC<CourseChatPanelProps> = ({
     setIsSending(true)
 
     try {
+      // Course chat requires a signed-in user (the API verifies this JWT
+      // server-side and rate-limits per user).
+      const supabase = getSupabaseClient()
+      const accessToken = supabase
+        ? (await supabase.auth.getSession()).data.session?.access_token
+        : null
+      if (!accessToken) {
+        throw new Error('Sign in to use course chat.')
+      }
+
       const response = await fetch('/api/course-chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           messages: nextMessages,
